@@ -1,6 +1,6 @@
 import socket
 import sqlite3
-
+from urllib.parse import parse_qs, urlparse
 def create_table():
     # Conexión a la base de datos
     conn = sqlite3.connect('academico.db')
@@ -38,9 +38,11 @@ def select_alumnos():
     cursor = conn.execute('SELECT * FROM alumno')
 
     # Generación de tabla HTML con los resultados
-    html = '<table><tr><th>CI</th><th>Nombre</th><th>Apellido</th><th>Fecha de nacimiento</th></tr>'
+    html = '<table><tr><th>CI</th><th>Nombre</th><th>Apellido</th><th>Fecha de nacimiento</th><th>Acciones</th></tr>'
     for row in cursor:
-        html += f'<tr><td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td></tr>'
+        ci = row[0]
+        html += f'<tr><td>{ci}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td>'
+        html += f'<td><a href="editar_alumno?Ci={ci}&Nombre={row[1]}&Apellido={row[2]}&fecha_nac={row[3]}">Editar</a><a href="eliminar_alumno?ci={ci}">Eliminar</a></td></tr>'
     html += '</table>'
 
     # Cerramos la conexión
@@ -53,13 +55,15 @@ def select_asignatura():
     # Conexión a la base de datos
     conn = sqlite3.connect('academico.db')
 
-    # Consulta de todos los alumnos
+    # Consulta de todas las asignaturas
     cursor = conn.execute('SELECT * FROM asignatura')
 
     # Generación de tabla HTML con los resultados
-    html = '<table><tr><th>Sigla</th><th>Nombre</th><th>Semestre</th></tr>'
+    html = '<table><tr><th>Sigla</th><th>Nombre</th><th>Semestre</th><th>Acciones</th></tr>'
     for row in cursor:
-        html += f'<tr><td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td></tr>'
+        html += f'<tr><td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td>'
+        html += f'<td><a href="editar_asignatura?sigla={row[0]}">Editar</a></td>'
+        html += f'<td><a href="eliminar_asignatura?sigla={row[0]}">Eliminar</a></td></tr>'
     html += '</table>'
 
     # Cerramos la conexión
@@ -67,12 +71,14 @@ def select_asignatura():
 
     return html
 
+
+
 def insert_alumno(Ci, Nombre, Apellido, fecha_nac):
     # Conexión a la base de datos
     conn = sqlite3.connect('academico.db')
 
     # Inserción de contacto
-    conn.execute(f"INSERT INTO alumno (CI, Nombre, Apellido, fehca_nac) \
+    conn.execute(f"INSERT INTO alumno (CI, Nombre, Apellido, fecha_nac) \
                    VALUES ('{Ci}', '{Nombre}', '{Apellido}','{fecha_nac}');")
 
     # Guardamos los cambios
@@ -81,6 +87,57 @@ def insert_alumno(Ci, Nombre, Apellido, fecha_nac):
     # Cerramos la conexión
     conn.close()
 
+
+def eliminar_alumno(id):
+    # Conexión a la base de datos
+    conn = sqlite3.connect('academico.db')
+
+    # Eliminamos el registro correspondiente
+    conn.execute(f"DELETE FROM alumno WHERE CI='{id}'")
+
+
+    # Guardamos los cambios y cerramos la conexión
+    conn.commit()
+    conn.close()
+
+def editar_alumno(ci, nombre, apellido, fecha_nac):
+    # Conexión a la base de datos
+    conn = sqlite3.connect('academico.db')
+
+    # Eliminamos el registro correspondiente
+    conn.execute(f"UPDATE alumno SET Nombre='{nombre}', Apellido='{apellido}', fecha_nac='{fecha_nac}' WHERE CI='{ci}'")
+
+
+    # Guardamos los cambios y cerramos la conexión
+    conn.commit()
+    conn.close()
+
+def eliminar_asignatura(sigla):
+     # Conexión a la base de datos
+    conn = sqlite3.connect('academico.db')
+
+    # Eliminamos el registro correspondiente
+    conn.execute(f'DELETE FROM asignatura WHERE ci={sigla}')
+
+    # Guardamos los cambios y cerramos la conexión
+    conn.commit()
+    conn.close()
+
+
+def mostrar():
+    # codigo para mostrar tabla alumno en pagina web
+                html1 = select_alumnos()
+
+                # codigo para mostrar tabla asignatura en pagina web
+                html2 = select_asignatura()
+
+                # Cargamos el archivo HTML
+                with open('index.html', 'r') as file:
+                    html = file.read()
+
+                # Reemplazar las variables en la cadena de formato
+                html = html.format(html1=html1, html2=html2)
+                return html
 def main():
     # Creamos un objeto de socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -100,6 +157,7 @@ def main():
     create_table()
 
     while True:
+
         # Esperamos a que llegue una conexión
         client_socket, client_address = server_socket.accept()
 
@@ -110,37 +168,84 @@ def main():
         print(f'Solicitud recibida desde {client_address[0]}:{client_address[1]}:')
         print(request)
 
+        #cargamos otra pagina
+        if request.startswith('GET /insertar_alumno.html'):
+            # Cargamos el archivo HTML
+            with open('insertar_alumno.html', 'r') as file:
+                html = file.read()
+            #response = 'HTTP/1.1 200 OK\nContent-Type: text/html\n\n'
+            response += html
+        else:
+            #para index.
+            if request.startswith('GET /index.html'):
+                html=mostrar()
 
-        #codigo para mostrar tabla alumno en pagina web
-        html = select_alumnos()
-        response = 'HTTP/1.1 200 OK\nContent-Type: text/html\n\n'
-        response += html
-        client_socket.sendall(response.encode())
+            else:
+                #eliminar alumno
+                if request.startswith('GET /eliminar_alumno'):
+                    # Obtener el CI del alumno
+                    url_parts = urlparse(request)
+                    query_params = parse_qs(url_parts.query)
+                    ci = query_params.get('ci', [''])[0].split(' ')
+
+                    eliminar_alumno(ci[0])
+                    html=mostrar()
+                else:
+                    #editar alumno
+                    if request.startswith('GET /editar_alumno'):
+                        # Obtener los parámetros del GET
+                        parametros = request.split(' ')[1]
+                        query_params = parse_qs(parametros.split('?')[1])
+                        ci = query_params.get('Ci', [''])[0]
+                        nomb = query_params.get('Nombre', [''])[0].strip()
+                        ape = query_params.get('Apellido', [''])[0].strip()
+                        fech = query_params.get('fecha_nac', [''])[0].strip()
 
 
-        #codigo para mostrar tabla asignatura en pagina web
-        html = select_asignatura()
-        response = 'HTTP/1.1 200 OK\nContent-Type: text/html\n\n'
-        response += html
-        client_socket.sendall(response.encode())
+                        # Cargar el archivo HTML
+                        with open('editar_alumno.html', 'r') as file:
+                            html = file.read()
 
-        # Cargamos el archivo HTML
-        with open('index.html', 'r') as file:
-            html = file.read()
+                        # Reemplazar las variables en la cadena de formato
+                        html = html.format(ci=ci, Nombre=nomb, Apellido=ape, Fecha_nac=fech)
 
-        if request.startswith('POST'):
+                    else:
+                        html=mostrar()
+
+        if request.startswith('POST /insertar_alumno'):
             # Si la solicitud es un POST, obtenemos los datos del formulario
-            Ci = request.split('\r\n')[-1]
-            nombre = data.split('&')[0].split('=')[1]
-            apellido = data.split('&')[1].split('=')[1]
-            fecha_nac = data.split('&')[2].split('=')[1]
+            envio = request.split('\r\n')[-1]
+            Ci = envio.split('&')[0].split('=')[1]
+            nombre = envio.split('&')[1].split('=')[1]
+            apellido = envio.split('&')[2].split('=')[1]
+            fecha_nac = envio.split('&')[3].split('=')[1]
 
-            # Insertamos el contacto en la base de datos
+
+            # Insertamos el alumno en la base de datos
             insert_alumno(Ci,nombre, apellido, fecha_nac)
+
+            html = mostrar()
 
             # Agregamos un mensaje de confirmación al HTML
             html += '<p>Alumno enviado correctamente.</p>'
+        #editar
+        if request.startswith('POST /editar_alumno'):
+            # Si la solicitud es un POST, obtenemos los datos del formulario
+            envio = request.split('\r\n')[-1]
+            Ci = envio.split('&')[0].split('=')[1]
+            nombre = envio.split('&')[1].split('=')[1]
+            apellido = envio.split('&')[2].split('=')[1]
+            fecha_nac = envio.split('&')[3].split('=')[1]
 
+
+            # Insertamos el alumno en la base de datos
+            editar_alumno(Ci,nombre, apellido, fecha_nac)
+
+            #actualiza
+            html = mostrar()
+
+            # Agregamos un mensaje de confirmación al HTML
+            html += '<p>Alumno editado correctamente.</p>'
         # Creamos una respuesta HTTP para el cliente
         response = 'HTTP/1.1 200 OK\nContent-Type: text/html\n\n'
         response += html
