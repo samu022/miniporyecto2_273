@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Insertar alumno</title>
+</head>
+<body>
+	<h1>Insertar a un alumno</h1>
+	<form method="POST" action="./editar_alumno">
+		<label for="Ci">Ci:</label>
+		<input type="text" id="Ci" name="Ci" value={ci} readonly>
+		<label for="nombre">Nombre:</label>
+		<input type="text" id="nombre" name="nombre" value={Nombre} required><br>
+		<label for="mensaje">Apellido:</label>
+		<input type="text" id="apellido" name="apellido" value={Apellido} required><br>
+		<label for="fecha_nacimiento">Fecha de nacimiento:</label>
+		<input type="date" id="fecha_nac" name="fecha_nac" value={Fecha_nac} required><br>
+		
+		<input type="submit" value="Enviar">
+
+	</form>
+	<a href="index.html">Volver</a>
+</body>
+</html>
